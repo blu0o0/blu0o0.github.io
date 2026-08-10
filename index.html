@@ -1,93 +1,138 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>BLU0o0</title>
-  <style>
-    body {
-      font-family: Arial;
-      background-color: #111;
-      color: white;
-      text-align: center;
-    }
-
-    img {
-      width: 250px;
-      margin: 10px;
-      border-radius: 10px;
-    }
-
-    .box {
-      background: #222;
-      padding: 20px;
-      margin: 20px auto;
-      width: 300px;
-      border-radius: 10px;
-    }
-
-    select, input {
-      margin: 5px;
-      padding: 5px;
-    }
-
-    button {
-      padding: 10px;
-      background: crimson;
-      color: white;
-      border: none;
-      border-radius: 5px;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Weather Lookup — API Practice Project</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    max-width: 480px;
+    margin: 40px auto;
+    padding: 0 16px;
+    color: #222;
+  }
+  h1 { font-size: 20px; }
+  .row { display: flex; gap: 8px; margin-bottom: 12px; }
+  input {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 15px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+  }
+  button {
+    padding: 10px 16px;
+    font-size: 15px;
+    border: none;
+    background: #333;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button:hover { background: #555; }
+  .locate {
+    background: none;
+    color: #333;
+    border: 1px solid #ccc;
+    font-size: 13px;
+    padding: 6px 10px;
+    margin-bottom: 20px;
+  }
+  #result {
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 16px;
+    min-height: 80px;
+    text-align: center;
+  }
+  #result .temp { font-size: 36px; font-weight: bold; margin: 4px 0; }
+  #result .meta { font-size: 13px; color: #777; }
+  .error { color: #b00020; }
+  .hint { color: #888; font-size: 13px; }
+</style>
 </head>
-
 <body>
 
-<h1>BLU0o0</h1>
+<h1>Weather lookup</h1>
+<p class="hint">Enter coordinates (or use your location) to see the current weather. This uses the free <a href="https://open-meteo.com" target="_blank">Open-Meteo API</a> — no API key needed.</p>
 
-<img src="https://via.placeholder.com/250">
-<img src="https://via.placeholder.com/250">
-<img src="https://via.placeholder.com/250">
+<div class="row">
+  <input type="text" id="lat-input" placeholder="Latitude" value="51.5074">
+  <input type="text" id="lon-input" placeholder="Longitude" value="-0.1278">
+  <button id="search-btn">Get weather</button>
+</div>
+<button class="locate" id="locate-btn">Use my current location</button>
 
-<h2>💰 Commission Form</h2>
-
-<div class="box">
-
-<form action="paltaobobby30@gmail.com" method="POST">
-
-<input type="text" name="name" placeholder="Your Name" required><br>
-<input type="email" name="email" placeholder="Your Email" required><br>
-
-<select id="type" name="type" onchange="calculate()">
-  <option value="20">Bust - $20</option>
-  <option value="30">Half Body - $30</option>
-  <option value="40">Full Body - $40</option>
-</select><br>
-
-<label>
-<input type="checkbox" id="extra" name="extra" onchange="calculate()">
-Extra Character (+$15)
-</label><br>
-
-<h3>Total: $<span id="total">20</span></h3>
-
-<input type="hidden" name="total_price" id="hiddenTotal">
-
-<button type="submit">Send Commission Request</button>
-
-</form>
-
+<div id="result">
+  <p class="hint">Weather will appear here.</p>
 </div>
 
 <script>
-function calculate() {
-  let base = parseInt(document.getElementById("type").value);
-  let extra = document.getElementById("extra").checked ? 15 : 0;
-  let total = base + extra;
+  const latInput = document.getElementById('lat-input');
+  const lonInput = document.getElementById('lon-input');
+  const button = document.getElementById('search-btn');
+  const locateBtn = document.getElementById('locate-btn');
+  const result = document.getElementById('result');
 
-  document.getElementById("total").innerText = total;
-  document.getElementById("hiddenTotal").value = total;
-}
+  // Weather codes from Open-Meteo docs, simplified to plain English
+  const weatherLabels = {
+    0: 'Clear sky', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Overcast',
+    45: 'Fog', 48: 'Fog', 51: 'Light drizzle', 61: 'Rain', 63: 'Rain',
+    65: 'Heavy rain', 71: 'Snow', 80: 'Rain showers', 95: 'Thunderstorm'
+  };
 
-calculate();
+  async function getWeather() {
+    const lat = latInput.value.trim();
+    const lon = lonInput.value.trim();
+    if (!lat || !lon) return;
+
+    result.innerHTML = '<p class="hint">Loading...</p>';
+
+    try {
+      // Notice: this API takes parameters in the URL after "?" instead of
+      // in the path itself. That's called a query string.
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Request failed (status ${response.status})`);
+
+      const data = await response.json();
+      const current = data.current_weather;
+      const label = weatherLabels[current.weathercode] || 'Unknown conditions';
+
+      result.innerHTML = `
+        <div class="temp">${current.temperature}°C</div>
+        <div>${label}</div>
+        <div class="meta">Wind ${current.windspeed} km/h &middot; ${lat}, ${lon}</div>
+      `;
+    } catch (err) {
+      result.innerHTML = `<p class="error">${err.message}</p>`;
+    }
+  }
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      result.innerHTML = '<p class="error">Geolocation not supported by this browser.</p>';
+      return;
+    }
+    result.innerHTML = '<p class="hint">Finding your location...</p>';
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        latInput.value = pos.coords.latitude.toFixed(4);
+        lonInput.value = pos.coords.longitude.toFixed(4);
+        getWeather();
+      },
+      () => {
+        result.innerHTML = '<p class="error">Could not get your location. Enter coordinates manually.</p>';
+      }
+    );
+  }
+
+  button.addEventListener('click', getWeather);
+  locateBtn.addEventListener('click', useMyLocation);
+
+  // Load London by default
+  getWeather();
 </script>
 
 </body>
